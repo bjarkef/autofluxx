@@ -6,7 +6,14 @@ import random
 import sys
 
 class Card:
-	pass
+	def __eq__(self, other):
+		return self.name == other.name
+
+	def __ne__(self, other):
+		return not self.__eq__(other)
+
+	def __hash__(self):
+		return hash(self.name)
 
 class RuleCard(Card):
 	def replaceRuleCard(self, gs, rulecardtype):
@@ -44,6 +51,15 @@ class HandLimitNCard(RuleCard):
 class Player:
 	def __init__(self, name):
 		self.name = name
+
+	def __eq__(self, other):
+		return self.name == other.name
+
+	def __ne__(self, other):
+		return not self.__eq__(other)
+
+	def __hash__(self):
+		return hash(self.name)
 
 class IllegalMove(Exception):
 	pass
@@ -208,18 +224,21 @@ class GameState:
 		self.usedDraws = 0
 		self.usedPlays = 0
 
-	def progress(self):
-		""" Return a new instance of GameState with the next move applied.
-		    Does not modify self. """
-
-		gs = deepcopy(self)
-		move = gs.turn.act(gs)
-		move.raiseIfIllegalMove(gs)
-		gs.performMove(move)
-		return (gs, move)
+#	def progress(self):
+#		""" Return a new instance of GameState with the next move applied.
+#		    Does not modify self. """
+#
+#		gs = deepcopy(self)
+#		move = gs.turn.act(gs)
+#		move.raiseIfIllegalMove(gs)
+#		gs.performMove(move)
+#		return (gs, move)
 
 	def performMove(self, move):
-		move.perform(self)
+		move.raiseIfIllegalMove(self)
+		nextState = deepcopy(self)
+		move.perform(nextState)
+		return nextState
 
 	def shuffleDeck(self):
 		random.shuffle(self.deck)
@@ -293,37 +312,9 @@ class GameState:
 					list(c.name for c in self.playershands[p])))
 
 
-
-class SimpleAutoPlayer(Player):
-	# Simple player that always plays the first n cards of his hand
-	def __init__(self, name):
-		super(SimpleAutoPlayer, self).__init__(name)
-
-	def act(self, gs):
-		# TODO: Get list of valid moves from gamestate and just pick one of thoese instead
-		if gs.remainingDraws > 0 and len(gs.deck) > 0:
-			m = DrawMove(self)
-		elif gs.remainingPlays > 0 and len(gs.playershands[self]) > 0:
-			m = PlayMove(self, gs.playershands[self][0])
-		elif gs.currentHandLimit < len(gs.playershands[self]):
-			m = DiscardMove(self, gs.playershands[self][0])
-		else:
-			m = EndTurnMove(self)
-		return m
-
-class RandomAutoPlayer(Player):
-	def __init__(self, name):
-		super(RandomAutoPlayer, self).__init__(name)
-
-	def act(self, gs):
-		return random.choice(gs.getLegalMoves())
-		
-	
-
 # Start game with two players
 players = 2
-#gs = GameState([SimpleAutoPlayer("Player " + str(n)) for n in range(1, players+1)])
-gs = GameState([RandomAutoPlayer("Player " + str(n)) for n in range(1, players+1)])
+gs = GameState([Player("Player " + str(n)) for n in range(1, players+1)])
 print("Players: {0}".format(len(gs.players)))
 
 pretotalcards = len(gs.deck)
@@ -334,7 +325,8 @@ while not gs.isFinished():
 	gs.printState()
 	moves = gs.getLegalMoves()
 	print("Legal moves: {0}".format([m.describe() for m in moves]))
-	gs, move = gs.progress()
+	move = random.choice(moves)
+	gs = gs.performMove(move)
 	print("Performed move: {0}".format(move.describe()))
 	print()
 	
