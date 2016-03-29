@@ -5,66 +5,11 @@ from time import sleep
 import random
 import sys
 
-class Card:
-	def __eq__(self, other):
-		return self.name == other.name
-
-	def __ne__(self, other):
-		return not self.__eq__(other)
-
-	def __hash__(self):
-		return hash(self.name)
-
-class RuleCard(Card):
-	def replaceRuleCard(self, gs, rulecardtype):
-		gs.discardFromTableCenter([c for c in gs.cardsOnTableCenter if isinstance(c, rulecardtype)])
-		gs.putOnTableCenter(self)
-
-class DrawNCard(RuleCard):
-	def __init__(self, n):
-		self.n = n
-		self.name = "Draw {0}".format(n)
-
-	def play(self, gs, player):
-		self.replaceRuleCard(gs, DrawNCard)
-		gs.currentDrawLimit = self.n
-
-class PlayNCard(RuleCard):
-	def __init__(self, n):
-		self.n = n
-		self.name = "Play {0}".format(n)
-	
-	def play(self, gs, player):
-		self.replaceRuleCard(gs, PlayNCard)
-		gs.currentPlayLimit = self.n
-
-class HandLimitNCard(RuleCard):
-	def __init__(self, n):
-		self.n = n
-		self.name = "Hand limit {0}".format(n)
-	
-	def play(self, gs, player):
-		self.replaceRuleCard(gs, HandLimitNCard)
-		gs.currentHandLimit = self.n
-	
-
-class Player:
-	def __init__(self, name):
-		self.name = name
-
-	def __eq__(self, other):
-		return self.name == other.name
-
-	def __ne__(self, other):
-		return not self.__eq__(other)
-
-	def __hash__(self):
-		return hash(self.name)
 
 class IllegalMove(Exception):
 	pass
 
-class Move():
+class Move:
 	def __init__(self, player):
 		self.player = player
 
@@ -153,7 +98,6 @@ class DiscardMove(Move):
 	def describe(self):
 		return "Discard: {0}".format(self.card.name)
 
-
 class EndTurnMove(Move):
 	@staticmethod
 	def raiseIfIllegalIgnoringHandLimit(gs, player):
@@ -181,6 +125,93 @@ class EndTurnMove(Move):
 	def describe(self):
 		return "End turn"
 
+
+
+class Card:
+	def __eq__(self, other):
+		return self.name == other.name
+
+	def __ne__(self, other):
+		return not self.__eq__(other)
+
+	def __hash__(self):
+		return hash(self.name)
+
+class RuleCard(Card):
+	def replaceRuleCard(self, gs, rulecardtype):
+		gs.discardFromTableCenter([c for c in gs.cardsOnTableCenter if isinstance(c, RuleCard)])
+		gs.putOnTableCenter(self)
+
+class DrawNCard(RuleCard):
+	def __init__(self, n):
+		self.n = n
+		self.name = "Draw {0}".format(n)
+
+	def play(self, gs, player):
+		self.replaceRuleCard(gs, DrawNCard)
+		gs.currentDrawLimit = self.n
+
+class PlayNCard(RuleCard):
+	def __init__(self, n):
+		self.n = n
+		self.name = "Play {0}".format(n)
+	
+	def play(self, gs, player):
+		self.replaceRuleCard(gs, PlayNCard)
+		gs.currentPlayLimit = self.n
+
+class HandLimitNCard(RuleCard):
+	def __init__(self, n):
+		self.n = n
+		self.name = "Hand limit {0}".format(n)
+	
+	def play(self, gs, player):
+		self.replaceRuleCard(gs, HandLimitNCard)
+		gs.currentHandLimit = self.n
+
+class ActionCard(Card):
+	pass
+
+class ActionRulesReset(ActionCard):
+	def __init__(self):
+		self.name = "Rules Reset"
+
+	class ResolveRulesResetMove(Move):
+		def __init__(self, player, card):
+			super(ActionRulesReset.ResolveRulesResetMove, self).__init__(player)
+			self.card = card
+
+		def raiseIfIllegalMove(self, gs):
+			pass
+
+		def perform(self, gs):
+			gs.discardFromTableCenter([self.card])
+			gs.actionIsResolved()
+
+		def describe(self):
+			return "Rules Reset"
+		
+
+	def play(self, gs, player):
+		gs.putInDiscardPile(self)
+		gs.actionResolving(self, [self.ResolveRulesResetMove(player, c) for c in gs.cardsOnTableCenter if isinstance(c, RuleCard)])
+
+
+
+class Player:
+	def __init__(self, name):
+		self.name = name
+
+	def __eq__(self, other):
+		return self.name == other.name
+
+	def __ne__(self, other):
+		return not self.__eq__(other)
+
+	def __hash__(self):
+		return hash(self.name)
+
+
 class GameState:
 	def __init__(self, players):
 		self.players = players
@@ -190,6 +221,7 @@ class GameState:
 		self.deck.extend(list(DrawNCard(n) for n in range(2, 5)))
 		self.deck.extend(list(PlayNCard(n) for n in range(2, 5)))
 		self.deck.extend(list(HandLimitNCard(n) for n in range(1, 3)))
+		self.deck.append(ActionRulesReset())
 		self.shuffleDeck()
 
 		self.playershands = {p:[] for p in self.players}
@@ -201,9 +233,15 @@ class GameState:
 		self.currentPlayLimit = 1
 		self.currentHandLimit = sys.maxsize
 
+		self.actionResolvingMoves = []
+
 		self.nextTurn()
 
 	def getLegalMoves(self):
+
+		if len(self.actionResolvingMoves) > 0:
+			return self.actionResolvingMoves
+
 		# Iterate over all possible moves and return which is allowed
 		moves = []
 		moves.extend([m for m in [DrawMove(p) for p in self.players] if m.isLegal(self)])
@@ -223,16 +261,6 @@ class GameState:
 		self.turn = next(self.turniter)
 		self.usedDraws = 0
 		self.usedPlays = 0
-
-#	def progress(self):
-#		""" Return a new instance of GameState with the next move applied.
-#		    Does not modify self. """
-#
-#		gs = deepcopy(self)
-#		move = gs.turn.act(gs)
-#		move.raiseIfIllegalMove(gs)
-#		gs.performMove(move)
-#		return (gs, move)
 
 	def performMove(self, move):
 		move.raiseIfIllegalMove(self)
@@ -282,6 +310,12 @@ class GameState:
 	def putOnTableCenter(self, card):
 		self.cardsOnTableCenter.append(card)
 
+	def actionResolving(self, card, moves):
+		self.actionResolvingMoves = moves
+
+	def actionIsResolved(self):
+		self.actionResolvingMoves = []
+
 	@property
 	def remainingPlays(self):
 		return max(0, self.currentPlayLimit - self.usedPlays)
@@ -313,39 +347,39 @@ class GameState:
 
 
 # Start game with two players
-players = 2
-gs = GameState([Player("Player " + str(n)) for n in range(1, players+1)])
-print("Players: {0}".format(len(gs.players)))
-
-pretotalcards = len(gs.deck)
-
-turns = 0
-
-while not gs.isFinished():
-	gs.printState()
-	moves = gs.getLegalMoves()
-	print("Legal moves: {0}".format([m.describe() for m in moves]))
-	move = random.choice(moves)
-	gs = gs.performMove(move)
-	print("Performed move: {0}".format(move.describe()))
-	print()
+def main():
+	players = 2
+	gs = GameState([Player("Player " + str(n)) for n in range(1, players+1)])
+	print("Players: {0}".format(len(gs.players)))
 	
-	if isinstance(move, EndTurnMove):
-		turns += 1
+	pretotalcards = len(gs.deck)
+	
+	turns = 0
+	
+	while not gs.isFinished():
+		gs.printState()
+		moves = gs.getLegalMoves()
+		print("Legal moves: {0}".format([m.describe() for m in moves]))
+		move = random.choice(moves)
+		gs = gs.performMove(move)
+		print("Performed move: {0}".format(move.describe()))
 		print()
-		print()
-#		sleep(1)
+		
+		if isinstance(move, EndTurnMove):
+			turns += 1
+			print()
+			print()
+	#		sleep(1)
+	
+		#sleep(0.1)
+	
+		if gs.countCards() != pretotalcards:
+			raise Exception("Lost a card somehow, expected {0} counted {1}"
+					.format(pretotalcards, gs.countCards()))
 
-	#sleep(0.1)
-
-	if gs.countCards() != pretotalcards:
-		raise Exception("Lost a card somehow, expected {0} counted {1}"
-				.format(pretotalcards, gs.countCards()))
 
 
 
-
-#for i,c in enumerate(gs.deck):
-#	print("Card {0}: {1}".format(i, c.name))
-
+if __name__=="__main__":
+   main()
 
