@@ -3,12 +3,15 @@ from copy import deepcopy
 from enum import Enum
 from time import sleep
 import random
+import sys
 
 class Card:
 	pass
 
 class RuleCard:
-	pass
+	def replaceRuleCard(self, gs, rulecardtype):
+		gs.discardFromTableCenter([c for c in gs.cardsOnTableCenter if isinstance(c, rulecardtype)])
+		gs.putOnTableCenter(self)
 
 class DrawNCard(RuleCard):
 	def __init__(self, n):
@@ -16,8 +19,7 @@ class DrawNCard(RuleCard):
 		self.name = "Draw {0}".format(n)
 
 	def play(self, gs):
-		gs.discardFromTableCenter([c for c in gs.cardsOnTableCenter if isinstance(c, DrawNCard)])
-		gs.putOnTableCenter(self)
+		self.replaceRuleCard(gs, DrawNCard)
 		gs.currentDrawLimit = self.n
 
 class PlayNCard(RuleCard):
@@ -26,17 +28,29 @@ class PlayNCard(RuleCard):
 		self.name = "Play {0}".format(n)
 	
 	def play(self, gs):
-		gs.discardFromTableCenter([c for c in gs.cardsOnTableCenter if isinstance(c, PlayNCard)])
-		gs.putOnTableCenter(self)
+		self.replaceRuleCard(gs, PlayNCard)
 		gs.currentPlayLimit = self.n
+
+class HandLimitNCard(RuleCard):
+	def __init__(self, n):
+		self.n = n
+		self.name = "Hand limit {0}".format(n)
+	
+	def play(self, gs):
+		self.replaceRuleCard(gs, HandLimitNCard)
+		gs.currentHandLimit = self.n
+	
 
 class Player:
 	def __init__(self, name):
 		self.name = name
 
+class IllegalMove(Exception):
+	pass
+
 class Move():
-	def isLegalMove(self, gs):
-		return False
+	def raiseIfIllegalMove(self, gs):
+		pass
 
 class DrawMove(Move):
 	"""Draw a single card from the deck"""
@@ -44,20 +58,38 @@ class DrawMove(Move):
 		card = gs.drawFromDeck()
 		gs.putCardOnCurrentPlayersHand(card)
 
-	def isLegalMove(self, gs):
-		return gs.remainingDraws > 0
+	@staticmethod
+	def raiseIfIllegalMoveStatic(gs):
+		if gs.remainingDraws == 0:
+			raise IllegalMove("No more draws remaining")
+		if len(gs.deck) == 0:
+			raise IllegalMove("Deck is empty")
+
+	def raiseIfIllegalMove(self, gs):
+		DrawMove.raiseIfIllegalMoveStatic(gs)
 	
 	def describe(self):
-		return "Draw 1 card from deck"
+		return "Draw a card from the deck"
 
 class PlayMove(Move):
 	# Play a card from the hand
 	def __init__(self, card):
 		self.card = card
 	
-	def isLegalMove(self, gs):
+	def raiseIfIllegalMove(self, gs):
 		# TODO: Also ask the card itself if it is currently playable
-		return gs.remainingPlays > 0 and self.card in gs.currentPlayersHand()
+		try:
+			DrawMove.raiseIfIllegalMoveStatic(gs)
+		except IllegalMove:
+			pass
+		else:
+			raise IllegalMove("Drawing is allowed thus no cards can be played")
+
+		if gs.remainingPlays == 0:
+			raise IllegalMove("No remaining plays")
+
+		if self.card not in gs.currentPlayersHand():
+			raise IllegalMove("Card {0} is not in players hand".format(self.card.name))
 
 	def perform(self, gs):
 		gs.playCard(self.card)
@@ -65,13 +97,41 @@ class PlayMove(Move):
 	def describe(self):
 		return "Play card: {0}".format(self.card.name)
 
+class DiscardMove(Move):
+	def __init__(self, card):
+		self.card = card
+
+	def raiseIfIllegalMove(self, gs):
+		EndTurnMove.raiseIfIllegalIgnoringHandLimit(gs)
+		if len(gs.currentPlayersHand()) <= gs.currentHandLimit:
+			raise IllegalMove("Handlimit not exceeded")
+		if self.card not in gs.currentPlayersHand():
+			raise IllegalMove("Card not in players hand")
+
+	def perform(self, gs):
+		gs.discardFromCurrentPlayersHand(self.card)
+	
+	def describe(self):
+		return "Discard card from hand: {0}".format(self.card.name)
+
+
 class EndTurnMove(Move):
-	def isLegalMove(self, gs):
-		if gs.remainingDraws > 0:
-			return False
-		if gs.remainingPlays == 0 or len(gs.currentPlayersHand()) == 0:
-			return True
-		return False
+	@staticmethod
+	def raiseIfIllegalIgnoringHandLimit(gs):
+		try:
+			DrawMove.raiseIfIllegalMoveStatic(gs)
+		except IllegalMove:
+			pass
+		else:
+			raise IllegalMove("Drawing is legal move")
+
+		if gs.remainingPlays > 0 and len(gs.currentPlayersHand()) > 0:
+			raise IllegalMove("Plays remaining")
+
+	def raiseIfIllegalMove(self, gs):
+		if len(gs.currentPlayersHand()) > gs.currentHandLimit:
+			raise IllegalMove("Hand limit exceeded")
+		EndTurnMove.raiseIfIllegalIgnoringHandLimit(gs)
 
 	def perform(self, gs):
 		gs.nextTurn()
@@ -93,8 +153,9 @@ class GameState:
 		self.turniter = cycle(self.players)
 		
 		self.deck = []
-		self.deck.extend(list(DrawNCard(n) for n in range(2, 4+1)))
-		self.deck.extend(list(PlayNCard(n) for n in range(2, 4+1)))
+		self.deck.extend(list(DrawNCard(n) for n in range(2, 5)))
+		self.deck.extend(list(PlayNCard(n) for n in range(2, 5)))
+		self.deck.extend(list(HandLimitNCard(n) for n in range(1, 3)))
 		self.shuffleDeck()
 
 		self.playershands = {p:[] for p in self.players}
@@ -104,6 +165,7 @@ class GameState:
 
 		self.currentDrawLimit = 1
 		self.currentPlayLimit = 1
+		self.currentHandLimit = sys.maxsize
 
 		self.nextTurn()
 
@@ -123,10 +185,8 @@ class GameState:
 
 		gs = deepcopy(self)
 		move = gs.turn.act(gs)
-		if move.isLegalMove(gs):
-			gs.performMove(move)
-		else:
-			raise self.InvalidMove(move.describe())
+		move.raiseIfIllegalMove(gs)
+		gs.performMove(move)
 		return (gs, move)
 
 	def performMove(self, move):
@@ -136,13 +196,23 @@ class GameState:
 		random.shuffle(self.deck)
 
 	def drawFromDeck(self):
-		if len(self.deck) == 0:
-			self.deck = self.discards
-			self.discards = []
-			self.shuffleDeck()
-
 		self.usedDraws += 1
-		return self.deck.pop(0)
+		card = self.deck.pop(0)
+		
+		if len(self.deck) == 0 and len(self.discards) > 0:
+			self.shuffleDiscardIntoDeck()
+
+		return card
+
+	def putInDiscardPile(self, card):
+		self.discards.append(card)
+		if len(self.deck) == 0:
+			self.shuffleDiscardIntoDeck()
+
+	def shuffleDiscardIntoDeck(self):
+		self.deck = self.discards
+		self.discards = []
+		self.shuffleDeck()
 
 	def putCardOnCurrentPlayersHand(self, card):
 		self.playershands[self.turn].append(card)
@@ -153,11 +223,13 @@ class GameState:
 		card.play(self)
 
 	def discardFromTableCenter(self, cards):
-		for ct in self.cardsOnTableCenter:
-			for c in cards:
-				if ct == c:
-					self.discards.append(c)
-					self.cardsOnTableCenter.remove(c)
+		for c in cards:
+			self.cardsOnTableCenter.remove(c)
+			self.putInDiscardPile(c)
+
+	def discardFromCurrentPlayersHand(self, card):
+		self.currentPlayersHand().remove(card)
+		self.putInDiscardPile(card)
 
 	def putOnTableCenter(self, card):
 		self.cardsOnTableCenter.append(card)
@@ -167,21 +239,31 @@ class GameState:
 
 	@property
 	def remainingPlays(self):
-		return self.currentPlayLimit - self.usedPlays
+		return max(0, self.currentPlayLimit - self.usedPlays)
 	
 	@property
 	def remainingDraws(self):
-		return self.currentDrawLimit - self.usedDraws
+		return max(0, self.currentDrawLimit - self.usedDraws)
 
+
+	def countCards(self):
+		c = len(self.deck)
+		c += len(self.discards)
+		c += len(self.cardsOnTableCenter)
+		for h in self.playershands.values():
+			c += len(h)
+		return c
 
 	def printState(self):
 		print("Current turn is: {0}".format(self.turn.name))
+		print("Remaining draws: {0}, Remaining plays: {1}".format(self.remainingDraws, self.remainingPlays))
 		print("Deck: {0}". format(list(c.name for c in self.deck)))
+		print("Discards: {0}". format(list(c.name for c in self.discards)))
 		print("Center Table: {0}". format(list(c.name for c in self.cardsOnTableCenter)))
 		for i,p in enumerate(self.players):
 			print("Player {0}'s hand: {1}"
 				.format(
-					i,
+					i+1,
 					list(c.name for c in self.playershands[p])))
 
 
@@ -193,30 +275,41 @@ class SimpleAutoPlayer(Player):
 
 	def act(self, gs):
 		# TODO: Get list of valid moves from gamestate and just pick one of thoese instead
-		if gs.remainingDraws > 0:
+		if gs.remainingDraws > 0 and len(gs.deck) > 0:
 			m = DrawMove()
 		elif gs.remainingPlays > 0 and len(gs.currentPlayersHand()) > 0:
 			m = PlayMove(gs.currentPlayersHand()[0])
+		elif gs.currentHandLimit < len(gs.currentPlayersHand()):
+			m = DiscardMove(gs.currentPlayersHand()[0])
 		else:
 			m = EndTurnMove()
 		return m
 
 
-# Start game with four players
-players = 4
+# Start game with two players
+players = 2
 gs = GameState([SimpleAutoPlayer("Player " + str(n)) for n in range(1, players+1)])
 print("Players: {0}".format(len(gs.players)))
+
+pretotalcards = len(gs.deck)
 
 while not gs.isFinished():
 	gs.printState()
 	gs, move = gs.progress()
 	print("Performed move: {0}".format(move.describe()))
 	print()
-	sleep(1)
+	
 	if isinstance(move, EndTurnMove):
 		print()
 		print()
-		sleep(5)
+#		sleep(1)
+
+	#sleep(0.1)
+
+	if gs.countCards() != pretotalcards:
+		raise Exception("Lost a card somehow, expected {0} counted {1}"
+				.format(pretotalcards, gs.countCards()))
+
 
 
 
