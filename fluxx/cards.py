@@ -75,3 +75,25 @@ class ActionTrashANewRule(ActionCard):
 	def play(self, gs, player):
 		gs.putInDiscardPile(self)
 		gs.actionResolving(self, [self.ResolveTrashANewRuleMove(player, c) for c in gs.cardsOnTableCenter if isinstance(c, RuleCard)])
+
+class KeeperCard(Card):
+	def play(self, gs, player):
+		gs.cardsInFrontOfPlayer[player].append(self)
+
+class KeeperTheCat(KeeperCard):
+	def __init__(self): self.name = "The Cat"
+class KeeperTheDrunk(KeeperCard):
+	def __init__(self): self.name = "The Drunk"
+class KeeperTheDreamer(KeeperCard):
+	def __init__(self): self.name = "The Dreamer"
+class KeeperTheGhoul(KeeperCard):
+	def __init__(self): self.name = "The Ghoul"
+class KeeperTheArtist(KeeperCard):
+	def __init__(self): self.name = "The Artist"
+class KeeperTheSocialite(KeeperCard):
+	def __init__(self): self.name = "The Socialite"
+class KeeperThePoet(KeeperCard):
+	def __init__(self): self.name = "The Poet"
+#class Keeper(KeeperCard):
+#	def __init__(self): self.name = ""
+

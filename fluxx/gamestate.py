@@ -1,5 +1,6 @@
 import sys
 import random
+import inspect
 
 from itertools import cycle
 from copy import deepcopy
@@ -18,10 +19,13 @@ class GameState:
 		self.deck.extend(list(cards.PlayNCard(n) for n in range(2, 5)))
 		self.deck.extend(list(cards.HandLimitNCard(n) for n in range(1, 3)))
 		self.deck.extend(list(cards.DummyCard(n) for n in range(1, 11)))
-		self.deck.append(cards.ActionTrashANewRule())
+		self.deck.extend([c() for c in cards.__dict__.values() if inspect.isclass(c) and issubclass(c, cards.KeeperCard) and c != cards.KeeperCard])
+		self.deck.append(cards.ActionTrashANewRule())	
+
 		self.shuffleDeck()
 
 		self.playershands = {p:[] for p in self.players}
+		self.cardsInFrontOfPlayer = {p:[] for p in self.players}
 
 		self.cardsOnTableCenter = []
 		self.discards = []
@@ -128,6 +132,8 @@ class GameState:
 		c += len(self.cardsOnTableCenter)
 		for h in self.playershands.values():
 			c += len(h)
+		for t in self.cardsInFrontOfPlayer.values():
+			c += len(t)
 		return c
 
 	def printState(self):
@@ -141,3 +147,7 @@ class GameState:
 				.format(
 					i+1,
 					list(c.name for c in self.playershands[p])))
+			print("Player {0}'s table cards: {1}"
+				.format(
+					i+1,
+					list(c.name for c in self.cardsInFrontOfPlayer[p])))
