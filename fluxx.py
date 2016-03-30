@@ -48,6 +48,9 @@ def main():
 			raise Exception("Lost a card somehow, expected {0} counted {1}"
 					.format(pretotalcards, gs.countCards()))
 
+	print()
+	print("Game is finished after {1} turns, winning players: {0}".format(list(p.name for p in gs.getWinningPlayers()), turns))
+
 
 
 

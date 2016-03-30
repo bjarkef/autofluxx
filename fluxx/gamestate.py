@@ -20,6 +20,7 @@ class GameState:
 		self.deck.extend(list(cards.HandLimitNCard(n) for n in range(1, 3)))
 		#self.deck.extend(list(cards.DummyCard(n) for n in range(1, 11)))
 		self.deck.extend([c() for c in cards.__dict__.values() if inspect.isclass(c) and issubclass(c, cards.KeeperCard) and c != cards.KeeperCard])
+		self.deck.extend([c() for c in cards.__dict__.values() if inspect.isclass(c) and issubclass(c, cards.GoalCard) and c != cards.GoalCard])
 		self.deck.append(cards.ActionTrashANewRule())	
 
 		self.shuffleDeck()
@@ -40,6 +41,9 @@ class GameState:
 		self.nextTurn()
 
 	def getLegalMoves(self):
+
+		if self.isFinished():
+			return []
 
 		if len(self.actionResolvingMoves) > 0:
 			return self.actionResolvingMoves
@@ -62,9 +66,17 @@ class GameState:
 		return m
 
 	def isFinished(self):
-		# Is the game finished somehow?
-		# TODO: Check for goal completion
-		return False
+		return bool(self.getWinningPlayers())
+
+	def getWinningPlayers(self):
+		winningPlayers = []
+		for p,h in self.cardsInFrontOfPlayer.items():
+			for c in self.cardsOnTableCenter:
+				if isinstance(c, cards.GoalCard):
+					if c.isFulfilled(h):
+						winningPlayers.append(p)
+
+		return winningPlayers
 
 	def nextTurn(self):
 		self.turn = next(self.turniter)

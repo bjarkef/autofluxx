@@ -4,9 +4,6 @@ class Card:
 	def __eq__(self, other):
 		return self.name == other.name
 
-	def __ne__(self, other):
-		return not self.__eq__(other)
-
 	def __hash__(self):
 		return hash(self.name)
 
@@ -97,4 +94,27 @@ class KeeperThePoet(KeeperCard):
 	def __init__(self): self.name = "The Poet"
 #class Keeper(KeeperCard):
 #	def __init__(self): self.name = ""
+
+class GoalCard(Card):
+	def play(self, gs, player):
+		gs.discardFromTableCenter([c for c in gs.cardsOnTableCenter if isinstance(c, GoalCard)])
+		gs.putOnTableCenter(self)
+
+class GoalBohemianRhapsody(GoalCard):
+	def __init__(self): self.name = "Bohemian Rhapsody"
+	def isFulfilled(self, playersCards):
+		 goalCards = set([KeeperTheArtist(), KeeperThePoet(), KeeperTheSocialite(), KeeperTheDrunk()])
+		 intersection = goalCards & set(playersCards)
+		 return len(intersection) >= 3
+
+#class Goal(GoalCard):
+#	def __init__(self): self.name = ""
+#class Goal(GoalCard):
+#	def __init__(self): self.name = ""
+#class Goal(GoalCard):
+#	def __init__(self): self.name = ""
+#class Goal(GoalCard):
+#	def __init__(self): self.name = ""
+#class Goal(GoalCard):
+#	def __init__(self): self.name = ""	
 
