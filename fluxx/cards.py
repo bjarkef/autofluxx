@@ -48,6 +48,7 @@ class HandLimitNCard(RuleCard):
 	def play(self, gs, player):
 		self.replaceRuleCard(gs, HandLimitNCard)
 		gs.currentHandLimit = self.n
+		gs.enforceHandLimitForOthers(player)
 
 class ActionCard(Card):
 	pass

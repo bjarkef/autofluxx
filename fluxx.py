@@ -8,10 +8,8 @@ class Player:
 		self.name = name
 
 	def __eq__(self, other):
+		if other == None: return False
 		return self.name == other.name
-
-	def __ne__(self, other):
-		return not self.__eq__(other)
 
 	def __hash__(self):
 		return hash(self.name)
@@ -28,14 +26,15 @@ def main():
 	
 	turns = 0
 	
+	move = None
 	while not gs.isFinished():
-		gs.printState()
+		if (isinstance(move, EndTurnMove)):
+			gs.printState()
 		moves = gs.getLegalMoves()
 		print("Legal moves: {0}".format([m.describe() for m in moves]))
 		move = random.choice(moves)
 		gs = gs.performMove(move)
 		print("Performed move: {0}".format(move.describe()))
-		print()
 		
 		if isinstance(move, EndTurnMove):
 			turns += 1

@@ -73,10 +73,11 @@ class DiscardMove(Move):
 		self.card = card
 
 	def raiseIfIllegalMove(self, gs):
-		EndTurnMove.raiseIfIllegalIgnoringHandLimit(gs, self.player)
+		if gs.enforceHandLimitForOtherPlayersExcept == None:
+			EndTurnMove.raiseIfIllegalIgnoringHandLimit(gs, self.player)
 		
-		if gs.turn != self.player:
-			raise IllegalMove("Out of turn")
+			if gs.turn != self.player:
+				raise IllegalMove("Out of turn")
 
 		if len(gs.playershands[self.player]) <= gs.currentHandLimit:
 			raise IllegalMove("Handlimit not exceeded")

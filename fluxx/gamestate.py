@@ -18,7 +18,7 @@ class GameState:
 		self.deck.extend(list(cards.DrawNCard(n) for n in range(2, 5)))
 		self.deck.extend(list(cards.PlayNCard(n) for n in range(2, 5)))
 		self.deck.extend(list(cards.HandLimitNCard(n) for n in range(1, 3)))
-		self.deck.extend(list(cards.DummyCard(n) for n in range(1, 11)))
+		#self.deck.extend(list(cards.DummyCard(n) for n in range(1, 11)))
 		self.deck.extend([c() for c in cards.__dict__.values() if inspect.isclass(c) and issubclass(c, cards.KeeperCard) and c != cards.KeeperCard])
 		self.deck.append(cards.ActionTrashANewRule())	
 
@@ -35,6 +35,7 @@ class GameState:
 		self.currentHandLimit = sys.maxsize
 
 		self.actionResolvingMoves = []
+		self.enforceHandLimitForOtherPlayersExcept = None
 
 		self.nextTurn()
 
@@ -42,6 +43,13 @@ class GameState:
 
 		if len(self.actionResolvingMoves) > 0:
 			return self.actionResolvingMoves
+
+		if self.enforceHandLimitForOtherPlayersExcept != None:
+			m = [moves.DiscardMove(p, c) for p in self.players for c in self.playershands[p] if p != self.enforceHandLimitForOtherPlayersExcept and len(self.playershands[p]) > self.currentHandLimit]
+			if m:
+				return m
+			else:
+				self.enforceHandLimitForOtherPlayersExcept = None
 
 		# Iterate over all possible moves and return which is allowed
 		m = []
@@ -117,6 +125,9 @@ class GameState:
 	def actionIsResolved(self):
 		self.actionResolvingMoves = []
 
+	def enforceHandLimitForOthers(self, player):
+		self.enforceHandLimitForOtherPlayersExcept = player
+
 	@property
 	def remainingPlays(self):
 		return max(0, self.currentPlayLimit - self.usedPlays)
@@ -142,6 +153,8 @@ class GameState:
 		print("Deck: {0}". format(list(c.name for c in self.deck)))
 		print("Discards: {0}". format(list(c.name for c in self.discards)))
 		print("Center Table: {0}". format(list(c.name for c in self.cardsOnTableCenter)))
+		if self.enforceHandLimitForOtherPlayersExcept != None:
+			print("Enforcing hand limit for all players except: {0}".format(self.enforceHandLimitForOtherPlayersExcept.name))
 		for i,p in enumerate(self.players):
 			print("Player {0}'s hand: {1}"
 				.format(
