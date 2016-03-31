@@ -152,6 +152,9 @@ class KeeperThePoet(KeeperCard):
 class CreeperCard(Card):
 	pass
 
+class CreeperTheBody(Card):
+	def __init__(self): self.name = "The Body"
+	# TODO: Implement
 
 
 class GoalCard(Card):
@@ -159,28 +162,31 @@ class GoalCard(Card):
 		gs.discardFromTableCenter([c for c in gs.cardsOnTableCenter if isinstance(c, GoalCard)])
 		gs.putOnTableCenter(self)
 
+	def creepers(self, cards):
+		return [c for c in cards if isinstance(c, CreeperCard)]
+
 class GoalBohemianRhapsody(GoalCard):
 	def __init__(self): self.name = "Bohemian Rhapsody"
 	def isFulfilled(self, playersCards):
 		 goalCards = set([KeeperTheArtist(), KeeperThePoet(), KeeperTheSocialite(), KeeperTheDrunk()])
 		 intersection = goalCards & set(playersCards)
-		 return len(intersection) >= 3
+		 return len(intersection) >= 3 and not self.creepers(playersCards)
 
-#class GoalThingOnDoorstep(GoalCard):
-#	def __init__(self): self.name = "The Thing on the Doorstep"
-#	def isFulfilled(self, playersCards):
-#		 goalCards = set([KeeperThePoet(), KeeperTheSocialite(), CreeperTheBody()])
-#		 intersection = goalCards & set(playersCards)
-#		 return len(intersection) >= 2
+class GoalThingOnDoorstep(GoalCard):
+	def __init__(self): self.name = "The Thing on the Doorstep"
+	def isFulfilled(self, playersCards):
+		 goalCards = set([KeeperThePoet(), KeeperTheSocialite(), CreeperTheBody()])
+		 intersection = goalCards & set(playersCards)
+		 return len(intersection) >= 2 and (not self.creepers(playersCards) or self.creepers(playersCards) == [CreeperTheBody()])
 
 class GoalStrangeAllies(GoalCard):
 	def __init__(self): self.name = "Strange Allies"
 	def isFulfilled(self, playersCards):
-		return (KeeperTheDreamer() in playersCards and
+		return not self.creepers(playersCards) and (KeeperTheDreamer() in playersCards and
 				(KeeperTheCat() in playersCards or KeeperTheGhoul() in playersCards))
 
 class GoalPickmansModel(GoalCard):
 	def __init__(self): self.name = "Pickman's Model"
 	def isFulfilled(self, playersCards):
-		 return KeeperTheGhoul() in playersCards and KeeperTheArtist() in playersCards
+		 return not self.creepers(playersCards) and KeeperTheGhoul() in playersCards and KeeperTheArtist() in playersCards
 
