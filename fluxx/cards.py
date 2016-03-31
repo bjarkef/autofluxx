@@ -107,14 +107,21 @@ class GoalBohemianRhapsody(GoalCard):
 		 intersection = goalCards & set(playersCards)
 		 return len(intersection) >= 3
 
-#class Goal(GoalCard):
-#	def __init__(self): self.name = ""
-#class Goal(GoalCard):
-#	def __init__(self): self.name = ""
-#class Goal(GoalCard):
-#	def __init__(self): self.name = ""
-#class Goal(GoalCard):
-#	def __init__(self): self.name = ""
-#class Goal(GoalCard):
-#	def __init__(self): self.name = ""	
+#class GoalThingOnDoorstep(GoalCard):
+#	def __init__(self): self.name = "The Thing on the Doorstep"
+#	def isFulfilled(self, playersCards):
+#		 goalCards = set([KeeperThePoet(), KeeperTheSocialite(), CreeperTheBody()])
+#		 intersection = goalCards & set(playersCards)
+#		 return len(intersection) >= 2
+
+class GoalStrangeAllies(GoalCard):
+	def __init__(self): self.name = "Strange Allies"
+	def isFulfilled(self, playersCards):
+		return (KeeperTheDreamer() in playersCards and
+				(KeeperTheCat() in playersCards or KeeperTheGhoul() in playersCards))
+
+class GoalPickmansModel(GoalCard):
+	def __init__(self): self.name = "Pickman's Model"
+	def isFulfilled(self, playersCards):
+		 return KeeperTheGhoul() in playersCards and KeeperTheArtist() in playersCards
 
