@@ -74,6 +74,28 @@ class ActionTrashANewRule(ActionCard):
 		gs.putInDiscardPile(self)
 		gs.actionResolving(self, [self.ResolveTrashANewRuleMove(player, c) for c in gs.cardsOnTableCenter if isinstance(c, RuleCard)])
 
+class ActionRulesReset(ActionCard):
+	def __init__(self):
+		self.name = "Rules Reset"
+
+	class ResolveRulesResetMove(moves.Move):
+		def __init__(self, player):
+			super(ActionRulesReset.ResolveRulesResetMove, self).__init__(player)
+
+		def raiseIfIllegalMove(self, gs):
+			pass
+
+		def perform(self, gs):
+			gs.discardFromTableCenter([c for c in gs.cardsOnTableCenter if isinstance(c, RuleCard)])
+			gs.actionIsResolved()
+
+		def describe(self):
+			return "Rules Reset"
+
+	def play(self, gs, player):
+		gs.putInDiscardPile(self)
+		gs.actionResolving(self, [self.ResolveRulesResetMove(player)])
+
 class ActionTrashSomething(ActionCard):
 	def __init__(self):
 		self.name = "Trash Something"
