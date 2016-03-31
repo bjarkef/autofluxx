@@ -74,6 +74,36 @@ class ActionTrashANewRule(ActionCard):
 		gs.putInDiscardPile(self)
 		gs.actionResolving(self, [self.ResolveTrashANewRuleMove(player, c) for c in gs.cardsOnTableCenter if isinstance(c, RuleCard)])
 
+class ActionTrashSomething(ActionCard):
+	def __init__(self):
+		self.name = "Trash Something"
+
+	class ResolveTrashSomethingMove(moves.Move):
+		def __init__(self, actingplayer, victimplayer, card):
+			super(ActionTrashSomething.ResolveTrashSomethingMove, self).__init__(actingplayer)
+			self.victimplayer = victimplayer
+			self.card = card
+
+		def raiseIfIllegalMove(self, gs):
+			pass
+
+		def perform(self, gs):
+			gs.discardFromInFrontOfPlayer(self.victimplayer, self.card)
+			gs.actionIsResolved()
+
+		def describe(self):
+			return "Trash something: {0} - {1}".format(self.victimplayer.name, self.card.name)
+		
+
+	def play(self, gs, player):
+		gs.putInDiscardPile(self)
+		m = []
+		for victim, cards in gs.cardsInFrontOfPlayer.items():
+			for c in cards:
+				if isinstance(c, KeeperCard) or isinstance(c, CreeperCard):
+					m.append(self.ResolveTrashSomethingMove(player, victim, c))
+		gs.actionResolving(self, m)
+
 class KeeperCard(Card):
 	def play(self, gs, player):
 		gs.cardsInFrontOfPlayer[player].append(self)
@@ -94,6 +124,13 @@ class KeeperThePoet(KeeperCard):
 	def __init__(self): self.name = "The Poet"
 #class Keeper(KeeperCard):
 #	def __init__(self): self.name = ""
+
+
+
+class CreeperCard(Card):
+	pass
+
+
 
 class GoalCard(Card):
 	def play(self, gs, player):

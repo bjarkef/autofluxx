@@ -21,7 +21,7 @@ class GameState:
 		#self.deck.extend(list(cards.DummyCard(n) for n in range(1, 11)))
 		self.deck.extend([c() for c in cards.__dict__.values() if inspect.isclass(c) and issubclass(c, cards.KeeperCard) and c != cards.KeeperCard])
 		self.deck.extend([c() for c in cards.__dict__.values() if inspect.isclass(c) and issubclass(c, cards.GoalCard) and c != cards.GoalCard])
-		self.deck.append(cards.ActionTrashANewRule())	
+		self.deck.extend([c() for c in cards.__dict__.values() if inspect.isclass(c) and issubclass(c, cards.ActionCard) and c != cards.ActionCard])
 
 		self.shuffleDeck()
 
@@ -124,9 +124,13 @@ class GameState:
 			self.cardsOnTableCenter.remove(c)
 			self.putInDiscardPile(c)
 
-	def discardFromHand(self, player,card):
+	def discardFromHand(self, player, card):
 		self.playershands[player].remove(card)
 		self.putInDiscardPile(card)
+
+	def discardFromInFrontOfPlayer(self, player, card):
+		self.cardsInFrontOfPlayer[player].remove(card)
+		self.putInDiscardPile(card)		
 
 	def putOnTableCenter(self, card):
 		self.cardsOnTableCenter.append(card)
