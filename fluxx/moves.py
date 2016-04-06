@@ -20,7 +20,8 @@ class DrawMove(Move):
 	"""Draw a single card from the deck"""
 	def perform(self, gs):
 		card = gs.drawFromDeck()
-		gs.putCardOnCurrentPlayersHand(card)
+		gs.putCardOnCurrentPlayersHand(card) #FIXME: Remove Current
+		card.drawn(gs, self.player)
 
 	@staticmethod
 	def raiseIfIllegalMoveStatic(gs):
@@ -28,6 +29,8 @@ class DrawMove(Move):
 			raise IllegalMove("No more draws remaining")
 		if len(gs.deck) == 0:
 			raise IllegalMove("Deck is empty")
+		if gs.creeperJustDrawn:
+			raise IllegalMove("Creeper was just drawn")
 
 	def raiseIfIllegalMove(self, gs):
 		if gs.turn != self.player:
@@ -51,6 +54,9 @@ class PlayMove(Move):
 			pass
 		else:
 			raise IllegalMove("Drawing is allowed thus no cards can be played")
+
+		if gs.creeperJustDrawn and not self.card.isCreeper():
+			raise IllegalMove("Creeper just drawn")
 
 		if gs.turn != self.player:
 			raise IllegalMove("Out of turn")

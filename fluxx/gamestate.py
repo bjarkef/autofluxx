@@ -20,6 +20,7 @@ class GameState:
 		self.deck.extend(list(cards.HandLimitNCard(n) for n in range(1, 3)))
 		#self.deck.extend(list(cards.DummyCard(n) for n in range(1, 11)))
 		self.deck.extend([c() for c in cards.__dict__.values() if inspect.isclass(c) and issubclass(c, cards.KeeperCard) and c != cards.KeeperCard])
+		self.deck.extend([c() for c in cards.__dict__.values() if inspect.isclass(c) and issubclass(c, cards.CreeperCard) and c != cards.CreeperCard])
 		self.deck.extend([c() for c in cards.__dict__.values() if inspect.isclass(c) and issubclass(c, cards.GoalCard) and c != cards.GoalCard])
 		self.deck.extend([c() for c in cards.__dict__.values() if inspect.isclass(c) and issubclass(c, cards.ActionCard) and c != cards.ActionCard])
 
@@ -37,11 +38,11 @@ class GameState:
 
 		self.actionResolvingMoves = []
 		self.enforceHandLimitForOtherPlayersExcept = None
+		self.creeperJustDrawn = False
 
 		self.nextTurn()
 
 	def getLegalMoves(self):
-
 		if self.isFinished():
 			return []
 
@@ -116,7 +117,8 @@ class GameState:
 
 	def playCard(self, player, card):
 		self.playershands[player].remove(card)
-		self.usedPlays += 1
+		if not isinstance(card, cards.CreeperCard):
+			self.usedPlays += 1
 		card.play(self, player)
 
 	def discardFromTableCenter(self, cards):

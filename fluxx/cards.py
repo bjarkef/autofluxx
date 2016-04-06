@@ -1,6 +1,15 @@
 from . import moves
 
 class Card:
+	def play(self, gs, player):
+		pass
+
+	def drawn(self, gs, player):
+		pass
+
+	def isCreeper(self):
+		return False
+
 	def __eq__(self, other):
 		return self.name == other.name
 
@@ -150,11 +159,26 @@ class KeeperThePoet(KeeperCard):
 
 
 class CreeperCard(Card):
-	pass
+	def play(self, gs, player):
+		gs.creeperJustDrawn = False
+		gs.cardsInFrontOfPlayer[player].append(self)
 
-class CreeperTheBody(Card):
+	def drawn(self, gs, player):
+		gs.creeperJustDrawn = True
+
+	def isCreeper(self):
+		return True
+
+class CreeperTheBody(CreeperCard):
 	def __init__(self): self.name = "The Body"
-	# TODO: Implement
+class CreeperTheFungi(CreeperCard):
+	def __init__(self): self.name = "The Fungi"
+class CreeperTheShottoth(CreeperCard):
+	def __init__(self): self.name = "The Shottoth"
+class CreeperYogSothoth(CreeperCard):
+	def __init__(self): self.name = "Yog-Sothoth"
+#class Creeper(CreeperCard):
+#	def __init__(self): self.name = ""
 
 
 class GoalCard(Card):
