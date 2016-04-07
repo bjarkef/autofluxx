@@ -17,18 +17,18 @@ class Move:
 		pass
 
 class DrawMove(Move):
-	"""Draw a single card from the deck"""
+	"""Draw a single card from the draw pile"""
 	def perform(self, gs):
-		card = gs.drawFromDeck()
-		gs.putCardOnCurrentPlayersHand(card) #FIXME: Remove Current
+		card = gs.drawFromDrawPile()
+		gs.playersHands[self.player].append(card)
 		card.drawn(gs, self.player)
 
 	@staticmethod
 	def raiseIfIllegalMoveStatic(gs):
 		if gs.remainingDraws == 0:
 			raise IllegalMove("No more draws remaining")
-		if len(gs.deck) == 0:
-			raise IllegalMove("Deck is empty")
+		if len(gs.drawPile) == 0:
+			raise IllegalMove("drawPile is empty")
 		if gs.creeperJustDrawn:
 			raise IllegalMove("Creeper was just drawn")
 
@@ -58,13 +58,13 @@ class PlayMove(Move):
 		if gs.creeperJustDrawn and not self.card.isCreeper():
 			raise IllegalMove("Creeper just drawn")
 
-		if gs.turn != self.player:
+		if gs.turn != self.player and not gs.creeperJustDrawn:
 			raise IllegalMove("Out of turn")
 
-		if gs.remainingPlays == 0:
+		if gs.remainingPlays == 0 and not gs.creeperJustDrawn:
 			raise IllegalMove("No remaining plays")
 
-		if self.card not in gs.playershands[self.player]:
+		if self.card not in gs.playersHands[self.player]:
 			raise IllegalMove("Card {0} is not in players hand".format(self.card.name))
 
 	def perform(self, gs):
@@ -85,10 +85,10 @@ class DiscardMove(Move):
 			if gs.turn != self.player:
 				raise IllegalMove("Out of turn")
 
-		if len(gs.playershands[self.player]) <= gs.currentHandLimit:
+		if len(gs.playersHands[self.player]) <= gs.currentHandLimit:
 			raise IllegalMove("Handlimit not exceeded")
 
-		if self.card not in gs.playershands[self.player]:
+		if self.card not in gs.playersHands[self.player]:
 			raise IllegalMove("Card not in players hand")
 
 	def perform(self, gs):
@@ -110,11 +110,11 @@ class EndTurnMove(Move):
 		if gs.turn != player:
 			raise IllegalMove("Out of turn")
 
-		if gs.remainingPlays > 0 and len(gs.playershands[player]) > 0:
+		if gs.remainingPlays > 0 and len(gs.playersHands[player]) > 0:
 			raise IllegalMove("Plays remaining")
 
 	def raiseIfIllegalMove(self, gs):
-		if len(gs.playershands[self.player]) > gs.currentHandLimit:
+		if len(gs.playersHands[self.player]) > gs.currentHandLimit:
 			raise IllegalMove("Hand limit exceeded")
 		EndTurnMove.raiseIfIllegalIgnoringHandLimit(gs, self.player)
 

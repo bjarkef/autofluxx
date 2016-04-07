@@ -25,7 +25,7 @@ class DummyCard(Card):
 
 class RuleCard(Card):
 	def replaceRuleCard(self, gs, rulecardtype):
-		gs.discardFromTableCenter([c for c in gs.cardsOnTableCenter if isinstance(c, rulecardtype)])
+		gs.discardFromTableCenter([c for c in gs.centerTable if isinstance(c, rulecardtype)])
 		gs.putOnTableCenter(self)
 
 class DrawNCard(RuleCard):
@@ -81,7 +81,7 @@ class ActionTrashANewRule(ActionCard):
 
 	def play(self, gs, player):
 		gs.putInDiscardPile(self)
-		gs.actionResolving(self, [self.ResolveTrashANewRuleMove(player, c) for c in gs.cardsOnTableCenter if isinstance(c, RuleCard)])
+		gs.actionResolving(self, [self.ResolveTrashANewRuleMove(player, c) for c in gs.centerTable if isinstance(c, RuleCard)])
 
 class ActionRulesReset(ActionCard):
 	def __init__(self):
@@ -95,7 +95,7 @@ class ActionRulesReset(ActionCard):
 			pass
 
 		def perform(self, gs):
-			gs.discardFromTableCenter([c for c in gs.cardsOnTableCenter if isinstance(c, RuleCard)])
+			gs.discardFromTableCenter([c for c in gs.centerTable if isinstance(c, RuleCard)])
 			gs.actionIsResolved()
 
 		def describe(self):
@@ -119,7 +119,7 @@ class ActionTrashSomething(ActionCard):
 			pass
 
 		def perform(self, gs):
-			gs.discardFromInFrontOfPlayer(self.victimplayer, self.card)
+			gs.discardFromPlayersCards(self.victimplayer, self.card)
 			gs.actionIsResolved()
 
 		def describe(self):
@@ -129,7 +129,7 @@ class ActionTrashSomething(ActionCard):
 	def play(self, gs, player):
 		gs.putInDiscardPile(self)
 		m = []
-		for victim, cards in gs.cardsInFrontOfPlayer.items():
+		for victim, cards in gs.playersTable.items():
 			for c in cards:
 				if isinstance(c, KeeperCard) or isinstance(c, CreeperCard):
 					m.append(self.ResolveTrashSomethingMove(player, victim, c))
@@ -137,7 +137,7 @@ class ActionTrashSomething(ActionCard):
 
 class KeeperCard(Card):
 	def play(self, gs, player):
-		gs.cardsInFrontOfPlayer[player].append(self)
+		gs.playersTable[player].append(self)
 
 class KeeperTheCat(KeeperCard):
 	def __init__(self): self.name = "The Cat"
@@ -161,7 +161,7 @@ class KeeperThePoet(KeeperCard):
 class CreeperCard(Card):
 	def play(self, gs, player):
 		gs.creeperJustDrawn = False
-		gs.cardsInFrontOfPlayer[player].append(self)
+		gs.playersTable[player].append(self)
 
 	def drawn(self, gs, player):
 		gs.creeperJustDrawn = True
@@ -183,7 +183,7 @@ class CreeperYogSothoth(CreeperCard):
 
 class GoalCard(Card):
 	def play(self, gs, player):
-		gs.discardFromTableCenter([c for c in gs.cardsOnTableCenter if isinstance(c, GoalCard)])
+		gs.discardFromTableCenter([c for c in gs.centerTable if isinstance(c, GoalCard)])
 		gs.putOnTableCenter(self)
 
 	def creepers(self, cards):
@@ -191,26 +191,26 @@ class GoalCard(Card):
 
 class GoalBohemianRhapsody(GoalCard):
 	def __init__(self): self.name = "Bohemian Rhapsody"
-	def isFulfilled(self, playersCards):
+	def isFulfilled(self, playersTable):
 		 goalCards = set([KeeperTheArtist(), KeeperThePoet(), KeeperTheSocialite(), KeeperTheDrunk()])
-		 intersection = goalCards & set(playersCards)
-		 return len(intersection) >= 3 and not self.creepers(playersCards)
+		 intersection = goalCards & set(playersTable)
+		 return len(intersection) >= 3 and not self.creepers(playersTable)
 
 class GoalThingOnDoorstep(GoalCard):
 	def __init__(self): self.name = "The Thing on the Doorstep"
-	def isFulfilled(self, playersCards):
+	def isFulfilled(self, playersTable):
 		 goalCards = set([KeeperThePoet(), KeeperTheSocialite(), CreeperTheBody()])
-		 intersection = goalCards & set(playersCards)
-		 return len(intersection) >= 2 and (not self.creepers(playersCards) or self.creepers(playersCards) == [CreeperTheBody()])
+		 intersection = goalCards & set(playersTable)
+		 return len(intersection) >= 2 and (not self.creepers(playersTable) or self.creepers(playersTable) == [CreeperTheBody()])
 
 class GoalStrangeAllies(GoalCard):
 	def __init__(self): self.name = "Strange Allies"
-	def isFulfilled(self, playersCards):
-		return not self.creepers(playersCards) and (KeeperTheDreamer() in playersCards and
-				(KeeperTheCat() in playersCards or KeeperTheGhoul() in playersCards))
+	def isFulfilled(self, playersTable):
+		return not self.creepers(playersTable) and (KeeperTheDreamer() in playersTable and
+				(KeeperTheCat() in playersTable or KeeperTheGhoul() in playersTable))
 
 class GoalPickmansModel(GoalCard):
 	def __init__(self): self.name = "Pickman's Model"
-	def isFulfilled(self, playersCards):
-		 return not self.creepers(playersCards) and KeeperTheGhoul() in playersCards and KeeperTheArtist() in playersCards
+	def isFulfilled(self, playersTable):
+		 return not self.creepers(playersTable) and KeeperTheGhoul() in playersTable and KeeperTheArtist() in playersTable
 

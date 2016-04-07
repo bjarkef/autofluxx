@@ -22,7 +22,7 @@ def main():
 	gs = GameState([Player("Player " + str(n)) for n in range(1, players+1)])
 	print("Players: {0}".format(len(gs.players)))
 	
-	pretotalcards = len(gs.deck)
+	pretotalcards = len(gs.drawPile)
 	
 	turns = 0
 	

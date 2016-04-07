@@ -14,23 +14,23 @@ class GameState:
 		self.players = players
 		self.turniter = cycle(self.players)
 		
-		self.deck = []
-		self.deck.extend(list(cards.DrawNCard(n) for n in range(2, 5)))
-		self.deck.extend(list(cards.PlayNCard(n) for n in range(2, 5)))
-		self.deck.extend(list(cards.HandLimitNCard(n) for n in range(1, 3)))
-		#self.deck.extend(list(cards.DummyCard(n) for n in range(1, 11)))
-		self.deck.extend([c() for c in cards.__dict__.values() if inspect.isclass(c) and issubclass(c, cards.KeeperCard) and c != cards.KeeperCard])
-		self.deck.extend([c() for c in cards.__dict__.values() if inspect.isclass(c) and issubclass(c, cards.CreeperCard) and c != cards.CreeperCard])
-		self.deck.extend([c() for c in cards.__dict__.values() if inspect.isclass(c) and issubclass(c, cards.GoalCard) and c != cards.GoalCard])
-		self.deck.extend([c() for c in cards.__dict__.values() if inspect.isclass(c) and issubclass(c, cards.ActionCard) and c != cards.ActionCard])
+		self.drawPile = []
+		self.drawPile.extend(list(cards.DrawNCard(n) for n in range(2, 5)))
+		self.drawPile.extend(list(cards.PlayNCard(n) for n in range(2, 5)))
+		self.drawPile.extend(list(cards.HandLimitNCard(n) for n in range(1, 3)))
+		#self.drawPile.extend(list(cards.DummyCard(n) for n in range(1, 11)))
+		self.drawPile.extend([c() for c in cards.__dict__.values() if inspect.isclass(c) and issubclass(c, cards.KeeperCard) and c != cards.KeeperCard])
+		self.drawPile.extend([c() for c in cards.__dict__.values() if inspect.isclass(c) and issubclass(c, cards.CreeperCard) and c != cards.CreeperCard])
+		self.drawPile.extend([c() for c in cards.__dict__.values() if inspect.isclass(c) and issubclass(c, cards.GoalCard) and c != cards.GoalCard])
+		self.drawPile.extend([c() for c in cards.__dict__.values() if inspect.isclass(c) and issubclass(c, cards.ActionCard) and c != cards.ActionCard])
 
-		self.shuffleDeck()
+		self.shuffleDrawPile()
 
-		self.playershands = {p:[] for p in self.players}
-		self.cardsInFrontOfPlayer = {p:[] for p in self.players}
+		self.playersHands = {p:[] for p in self.players}
+		self.playersTable = {p:[] for p in self.players}
 
-		self.cardsOnTableCenter = []
-		self.discards = []
+		self.centerTable = []
+		self.discardPile = []
 
 		self.currentDrawLimit = 1
 		self.currentPlayLimit = 1
@@ -50,7 +50,7 @@ class GameState:
 			return self.actionResolvingMoves
 
 		if self.enforceHandLimitForOtherPlayersExcept != None:
-			m = [moves.DiscardMove(p, c) for p in self.players for c in self.playershands[p] if p != self.enforceHandLimitForOtherPlayersExcept and len(self.playershands[p]) > self.currentHandLimit]
+			m = [moves.DiscardMove(p, c) for p in self.players for c in self.playersHands[p] if p != self.enforceHandLimitForOtherPlayersExcept and len(self.playersHands[p]) > self.currentHandLimit]
 			if m:
 				return m
 			else:
@@ -59,9 +59,9 @@ class GameState:
 		# Iterate over all possible moves and return which is allowed
 		m = []
 		m.extend([m for m in [moves.DrawMove(p) for p in self.players] if m.isLegal(self)])
-		m.extend([m for m in [moves.PlayMove(p, c) for p in self.players for c in self.playershands[p]]
+		m.extend([m for m in [moves.PlayMove(p, c) for p in self.players for c in self.playersHands[p]]
 				if m.isLegal(self)])
-		m.extend([m for m in [moves.DiscardMove(p, c) for p in self.players for c in self.playershands[p]]
+		m.extend([m for m in [moves.DiscardMove(p, c) for p in self.players for c in self.playersHands[p]]
 				if m.isLegal(self)])
 		m.extend([m for m in [moves.EndTurnMove(p) for p in self.players] if m.isLegal(self)])
 		return m
@@ -71,8 +71,8 @@ class GameState:
 
 	def getWinningPlayers(self):
 		winningPlayers = []
-		for p,h in self.cardsInFrontOfPlayer.items():
-			for c in self.cardsOnTableCenter:
+		for p,h in self.playersTable.items():
+			for c in self.centerTable:
 				if isinstance(c, cards.GoalCard):
 					if c.isFulfilled(h):
 						winningPlayers.append(p)
@@ -90,52 +90,49 @@ class GameState:
 		move.perform(nextState)
 		return nextState
 
-	def shuffleDeck(self):
-		random.shuffle(self.deck)
+	def shuffleDrawPile(self):
+		random.shuffle(self.drawPile)
 
-	def drawFromDeck(self):
+	def drawFromDrawPile(self):
 		self.usedDraws += 1
-		card = self.deck.pop(0)
+		card = self.drawPile.pop(0)
 		
-		if len(self.deck) == 0 and len(self.discards) > 0:
-			self.shuffleDiscardIntoDeck()
+		if len(self.drawPile) == 0 and len(self.discardPile) > 0:
+			self.shuffleDiscardIntoDrawPile()
 
 		return card
 
 	def putInDiscardPile(self, card):
-		self.discards.append(card)
-		if len(self.deck) == 0:
-			self.shuffleDiscardIntoDeck()
+		self.discardPile.append(card)
+		if len(self.drawPile) == 0:
+			self.shuffleDiscardIntoDrawPile()
 
-	def shuffleDiscardIntoDeck(self):
-		self.deck = self.discards
-		self.discards = []
-		self.shuffleDeck()
-
-	def putCardOnCurrentPlayersHand(self, card):
-		self.playershands[self.turn].append(card)
+	def shuffleDiscardIntoDrawPile(self):
+		self.drawPile = self.discardPile
+		self.discardPile = []
+		self.shuffleDrawPile()
 
 	def playCard(self, player, card):
-		self.playershands[player].remove(card)
+		self.playersHands[player].remove(card)
 		if not isinstance(card, cards.CreeperCard):
 			self.usedPlays += 1
 		card.play(self, player)
 
 	def discardFromTableCenter(self, cards):
 		for c in cards:
-			self.cardsOnTableCenter.remove(c)
+			self.centerTable.remove(c)
 			self.putInDiscardPile(c)
 
 	def discardFromHand(self, player, card):
-		self.playershands[player].remove(card)
+		self.playersHands[player].remove(card)
 		self.putInDiscardPile(card)
 
-	def discardFromInFrontOfPlayer(self, player, card):
-		self.cardsInFrontOfPlayer[player].remove(card)
+	def discardFromPlayersCards(self, player, card):
+		self.playersTable[player].remove(card)
 		self.putInDiscardPile(card)		
 
 	def putOnTableCenter(self, card):
-		self.cardsOnTableCenter.append(card)
+		self.centerTable.append(card)
 
 	def actionResolving(self, card, moves):
 		self.actionResolvingMoves = moves
@@ -156,29 +153,31 @@ class GameState:
 
 
 	def countCards(self):
-		c = len(self.deck)
-		c += len(self.discards)
-		c += len(self.cardsOnTableCenter)
-		for h in self.playershands.values():
+		c = len(self.drawPile)
+		c += len(self.discardPile)
+		c += len(self.centerTable)
+		for h in self.playersHands.values():
 			c += len(h)
-		for t in self.cardsInFrontOfPlayer.values():
+		for t in self.playersTable.values():
 			c += len(t)
 		return c
 
 	def printState(self):
 		print("Current turn is: {0}".format(self.turn.name))
 		print("Remaining draws: {0}, Remaining plays: {1}".format(self.remainingDraws, self.remainingPlays))
-		print("Deck: {0}". format(list(c.name for c in self.deck)))
-		print("Discards: {0}". format(list(c.name for c in self.discards)))
-		print("Center Table: {0}". format(list(c.name for c in self.cardsOnTableCenter)))
+		print("Draw pile: {0}". format(list(c.name for c in self.drawPile)))
+		print("Discard pile: {0}". format(list(c.name for c in self.discardPile)))
+		print("Center Table: {0}". format(list(c.name for c in self.centerTable)))
 		if self.enforceHandLimitForOtherPlayersExcept != None:
 			print("Enforcing hand limit for all players except: {0}".format(self.enforceHandLimitForOtherPlayersExcept.name))
+		if self.creeperJustDrawn:
+			print("Creeper just drawn")
 		for i,p in enumerate(self.players):
 			print("Player {0}'s hand: {1}"
 				.format(
 					i+1,
-					list(c.name for c in self.playershands[p])))
+					list(c.name for c in self.playersHands[p])))
 			print("Player {0}'s table cards: {1}"
 				.format(
 					i+1,
-					list(c.name for c in self.cardsInFrontOfPlayer[p])))
+					list(c.name for c in self.playersTable[p])))
