@@ -18,9 +18,10 @@ class Player:
 
 # Start game with two players
 def main():
-	players = 4
-	gs = GameState([Player("Player " + str(n)) for n in range(1, players+1)])
-	print("Players: {0}".format(len(gs.players)))
+	num_players = 4
+	players = [Player("Player " + str(n)) for n in range(1, num_players+1)]
+	gs = GameState(num_players)
+	print("Players: {0}".format(gs.num_players))
 	
 	pretotalcards = len(gs.drawPile)
 	
@@ -49,7 +50,7 @@ def main():
 					.format(pretotalcards, gs.countCards()))
 
 	print()
-	print("Game is finished after {1} turns, winning players: {0}".format(list(p.name for p in gs.getWinningPlayers()), turns))
+	print("Game is finished after {1} turns, winning players: {0}".format(list(p+1 for p in gs.getWinningPlayers()), turns))
 
 
 

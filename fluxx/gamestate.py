@@ -1,6 +1,9 @@
 import sys
 import random
 import inspect
+import pickle
+import binascii
+import lzma
 
 from itertools import cycle
 from copy import deepcopy
@@ -10,8 +13,9 @@ from . import moves
 
 
 class GameState:
-	def __init__(self, players):
-		self.players = players
+	def __init__(self, num_players):
+		self.num_players = num_players
+		self.players = list(range(num_players))
 		self.turniter = cycle(self.players)
 		
 		self.drawPile = []
@@ -41,6 +45,11 @@ class GameState:
 		self.creeperJustDrawn = False
 
 		self.nextTurn()
+
+	def nextTurn(self):
+		self.turn = next(self.turniter)
+		self.usedDraws = 0
+		self.usedPlays = 0
 
 	def getLegalMoves(self):
 		if self.isFinished():
@@ -78,11 +87,6 @@ class GameState:
 						winningPlayers.append(p)
 
 		return winningPlayers
-
-	def nextTurn(self):
-		self.turn = next(self.turniter)
-		self.usedDraws = 0
-		self.usedPlays = 0
 
 	def performMove(self, move):
 		move.raiseIfIllegalMove(self)
@@ -163,7 +167,7 @@ class GameState:
 		return c
 
 	def printState(self):
-		print("Current turn is: {0}".format(self.turn.name))
+		print("Current turn is: Player {0}".format(self.turn+1))
 		print("Remaining draws: {0}, Remaining plays: {1}".format(self.remainingDraws, self.remainingPlays))
 		print("Draw pile: {0}". format(list(c.name for c in self.drawPile)))
 		print("Discard pile: {0}". format(list(c.name for c in self.discardPile)))
@@ -181,3 +185,4 @@ class GameState:
 				.format(
 					i+1,
 					list(c.name for c in self.playersTable[p])))
+		print("Pickle: {}".format(binascii.b2a_base64(lzma.compress(pickle.dumps(self))).decode('ascii')))

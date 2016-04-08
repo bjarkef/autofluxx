@@ -123,7 +123,7 @@ class ActionTrashSomething(ActionCard):
 			gs.actionIsResolved()
 
 		def describe(self):
-			return "Trash something: {0} - {1}".format(self.victimplayer.name, self.card.name)
+			return "Trash: P{0} - {1}".format(self.victimplayer+1, self.card.name)
 		
 
 	def play(self, gs, player):
