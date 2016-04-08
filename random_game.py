@@ -16,7 +16,7 @@ class Player:
 
 
 
-# Start game with two players
+# Start game with four players
 def main():
 	num_players = 4
 	players = [Player("Player " + str(n)) for n in range(1, num_players+1)]
