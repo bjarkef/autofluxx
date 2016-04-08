@@ -185,4 +185,12 @@ class GameState:
 				.format(
 					i+1,
 					list(c.name for c in self.playersTable[p])))
-		print("Pickle: {}".format(binascii.b2a_base64(lzma.compress(pickle.dumps(self))).decode('ascii')))
+		print("Pickle: {}".format(self.asciiSerialize()))
+
+	def asciiSerialize(self):
+		return binascii.b2a_base64(lzma.compress(pickle.dumps(self))).decode('ascii')
+
+	@staticmethod
+	def asciiDeserialize(serialized):
+		return pickle.loads(lzma.decompress(binascii.a2b_base64(serialized)))
+
