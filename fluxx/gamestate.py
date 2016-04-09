@@ -65,6 +65,10 @@ class GameState:
 			else:
 				self.enforceHandLimitForOtherPlayersExcept = None
 
+		if self.creeperJustDrawn:
+			m = [moves.PlayMove(self.turn, c) for c in self.playersHands[self.turn] if c.isCreeper()]
+			return m
+
 		# Iterate over all possible moves and return which is allowed
 		m = []
 		m.extend([m for m in [moves.DrawMove(p) for p in self.players] if m.isLegal(self)])
@@ -173,7 +177,7 @@ class GameState:
 		print("Discard pile: {0}". format(list(c.name for c in self.discardPile)))
 		print("Center Table: {0}". format(list(c.name for c in self.centerTable)))
 		if self.enforceHandLimitForOtherPlayersExcept != None:
-			print("Enforcing hand limit for all players except: {0}".format(self.enforceHandLimitForOtherPlayersExcept.name))
+			print("Enforcing hand limit for all players except: {0}".format(self.enforceHandLimitForOtherPlayersExcept + 1))
 		if self.creeperJustDrawn:
 			print("Creeper just drawn")
 		for i,p in enumerate(self.players):
