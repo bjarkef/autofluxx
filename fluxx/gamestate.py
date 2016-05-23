@@ -189,6 +189,7 @@ class GameState:
 				.format(
 					i+1,
 					list(c.name for c in self.playersTable[p])))
+		print("Legal moves: {0}".format([m.describe() for m in self.getLegalMoves()]))
 		print("Pickle: {}".format(self.asciiSerialize()))
 
 	def asciiSerialize(self):
