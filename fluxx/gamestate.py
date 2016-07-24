@@ -1,9 +1,10 @@
-import sys
-import random
-import inspect
-import pickle
 import binascii
+import inspect
+import random
+import pickle
 import lzma
+import sys
+import re
 
 from itertools import cycle
 from copy import deepcopy
@@ -13,27 +14,76 @@ from . import moves
 
 
 class GameState:
-	def __init__(self, num_players):
+
+	@staticmethod
+	def createFromHumanReadableString(string):		
+		deck = GameState.createFullDeck()
+		
+		statedata = eval("{{{}}}".format(re.sub(r"([a-zA-Z]\w*)",r"'\1'", string)))
+		players = statedata['P']
+		draws = statedata['D']
+		plays = statedata['L']
+		
+		hand = []
+		for string_card in statedata['H']:
+			for card in deck[:]:
+				if card.shortName().startswith(string_card):
+					hand.append(card)
+					deck.remove(card)
+		
+		table = []
+		for string_card in statedata['T']:
+			for card in deck[:]:
+				if card.shortName().startswith(string_card):
+					table.append(card)
+					deck.remove(card)
+
+		center = []
+		for string_card in statedata['C']:
+			for card in deck[:]:
+				if card.shortName().startswith(string_card):
+					center.append(card)
+					deck.remove(card)
+
+		#print("Players: {}".format(players))
+		#print("Hand: {}".format(hand))
+		#print("Table: {}".format(table))
+		#print("Center: {}".format(center))
+
+		return GameState(players, hand, table, center, draws, plays)
+
+	@staticmethod
+	def createFullDeck(without=[]):
+		deck = []
+		deck.extend(list(cards.DrawNCard(n) for n in range(2, 5)))
+		deck.extend(list(cards.PlayNCard(n) for n in range(2, 5)))
+		deck.extend(list(cards.HandLimitNCard(n) for n in range(1, 3)))
+		deck.extend([c() for c in cards.__dict__.values() if inspect.isclass(c) and issubclass(c, cards.KeeperCard) and c != cards.KeeperCard])
+		deck.extend([c() for c in cards.__dict__.values() if inspect.isclass(c) and issubclass(c, cards.CreeperCard) and c != cards.CreeperCard])
+		deck.extend([c() for c in cards.__dict__.values() if inspect.isclass(c) and issubclass(c, cards.GoalCard) and c != cards.GoalCard])
+		deck.extend([c() for c in cards.__dict__.values() if inspect.isclass(c) and issubclass(c, cards.ActionCard) and c != cards.ActionCard])
+
+		for c in without:
+			deck.remove(c)
+
+		return deck
+
+	def __init__(self, num_players, hand=[], table=[], center=[], draws=0, plays=0):
+		self.completeinformation = False
+
 		self.num_players = num_players
 		self.players = list(range(num_players))
 		self.turniter = cycle(self.players)
 		
-		self.drawPile = []
-		self.drawPile.extend(list(cards.DrawNCard(n) for n in range(2, 5)))
-		self.drawPile.extend(list(cards.PlayNCard(n) for n in range(2, 5)))
-		self.drawPile.extend(list(cards.HandLimitNCard(n) for n in range(1, 3)))
-		#self.drawPile.extend(list(cards.DummyCard(n) for n in range(1, 11)))
-		self.drawPile.extend([c() for c in cards.__dict__.values() if inspect.isclass(c) and issubclass(c, cards.KeeperCard) and c != cards.KeeperCard])
-		self.drawPile.extend([c() for c in cards.__dict__.values() if inspect.isclass(c) and issubclass(c, cards.CreeperCard) and c != cards.CreeperCard])
-		self.drawPile.extend([c() for c in cards.__dict__.values() if inspect.isclass(c) and issubclass(c, cards.GoalCard) and c != cards.GoalCard])
-		self.drawPile.extend([c() for c in cards.__dict__.values() if inspect.isclass(c) and issubclass(c, cards.ActionCard) and c != cards.ActionCard])
-
-		self.shuffleDrawPile()
+		self.drawPile = None
 
 		self.playersHands = {p:[] for p in self.players}
 		self.playersTable = {p:[] for p in self.players}
 
-		self.centerTable = []
+		self.playersHands[0] = hand
+		self.playersTable[0] = table
+		self.centerTable = center
+
 		self.discardPile = []
 
 		self.currentDrawLimit = 1
@@ -45,6 +95,25 @@ class GameState:
 		self.creeperJustDrawn = False
 
 		self.nextTurn()
+
+		self.usedPlays = plays
+		self.usedDraws = draws
+
+		for c in self.centerTable:
+			if isinstance(c, cards.RuleCard):
+				c.applyRule(self)
+
+	def randomInformation(self):
+		copy = deepcopy(self)
+		without = []
+		without.extend(copy.playersHands[self.turn])
+		without.extend(copy.playersTable[self.turn])
+		without.extend(copy.centerTable)
+		copy.drawPile = GameState.createFullDeck(without)
+		copy.shuffleDrawPile()
+		copy.completeinformation = True
+
+		return copy
 
 	def nextTurn(self):
 		self.turn = next(self.turniter)
@@ -93,6 +162,8 @@ class GameState:
 		return winningPlayers
 
 	def performMove(self, move):
+		if not self.completeinformation:
+			raise RuntimeError("Cannot apply move to incomple information game state")
 		move.raiseIfIllegalMove(self)
 		nextState = deepcopy(self)
 		move.perform(nextState)
@@ -170,12 +241,15 @@ class GameState:
 			c += len(t)
 		return c
 
-	def printState(self):
-		print("Current turn is: Player {0}".format(self.turn+1))
+	def printState(self, extended=False, pickle=False):
+		print("Current turn is: Player {0} out of {1}".format(self.turn+1, self.num_players))
 		print("Remaining draws: {0}, Remaining plays: {1}".format(self.remainingDraws, self.remainingPlays))
-		print("Draw pile: {0}". format(list(c.name for c in self.drawPile)))
-		print("Discard pile: {0}". format(list(c.name for c in self.discardPile)))
+		
+		if extended:
+			print("Draw pile: {0}". format(list(c.name for c in self.drawPile)))
+			print("Discard pile: {0}". format(list(c.name for c in self.discardPile)))
 		print("Center Table: {0}". format(list(c.name for c in self.centerTable)))
+		
 		if self.enforceHandLimitForOtherPlayersExcept != None:
 			print("Enforcing hand limit for all players except: {0}".format(self.enforceHandLimitForOtherPlayersExcept + 1))
 		if self.creeperJustDrawn:
@@ -189,8 +263,14 @@ class GameState:
 				.format(
 					i+1,
 					list(c.name for c in self.playersTable[p])))
-		print("Legal moves: {0}".format([m.describe() for m in self.getLegalMoves()]))
-		print("Pickle: {}".format(self.asciiSerialize()))
+			if not self.completeinformation and i == 0:
+				break
+
+
+		if extended:
+			print("Legal moves: {0}".format([m.describe() for m in self.getLegalMoves()]))
+		if pickle:
+			print("Pickle: {}".format(self.asciiSerialize()))
 
 	def asciiSerialize(self):
 		return binascii.b2a_base64(lzma.compress(pickle.dumps(self))).decode('ascii')

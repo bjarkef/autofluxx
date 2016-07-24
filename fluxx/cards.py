@@ -10,6 +10,13 @@ class Card:
 	def isCreeper(self):
 		return False
 
+	def shortName(self):
+		withoutThe = self.name.split()
+		if withoutThe[0] == "The":
+			withoutThe = withoutThe[1:]
+		return "".join(withoutThe)
+
+
 	def __eq__(self, other):
 		return self.name == other.name
 
@@ -35,7 +42,13 @@ class DrawNCard(RuleCard):
 
 	def play(self, gs, player):
 		self.replaceRuleCard(gs, DrawNCard)
+		self.applyRule(gs)
+
+	def applyRule(self, gs):
 		gs.currentDrawLimit = self.n
+
+	def shortName(self):
+		return "D{}".format(self.n)
 
 class PlayNCard(RuleCard):
 	def __init__(self, n):
@@ -44,7 +57,14 @@ class PlayNCard(RuleCard):
 	
 	def play(self, gs, player):
 		self.replaceRuleCard(gs, PlayNCard)
+		self.applyRule(gs)
+
+	def applyRule(self, gs):
 		gs.currentPlayLimit = self.n
+
+	def shortName(self):
+		return "P{}".format(self.n)
+
 
 class HandLimitNCard(RuleCard):
 	def __init__(self, n):
@@ -53,8 +73,15 @@ class HandLimitNCard(RuleCard):
 	
 	def play(self, gs, player):
 		self.replaceRuleCard(gs, HandLimitNCard)
-		gs.currentHandLimit = self.n
+		self.applyRule(gs)
 		gs.enforceHandLimitForOthers(player)
+
+	def applyRule(self, gs):
+		gs.currentHandLimit = self.n
+
+	def shortName(self):
+		return "HL{}".format(self.n)
+
 
 class ActionCard(Card):
 	pass
@@ -67,6 +94,14 @@ class ActionTrashANewRule(ActionCard):
 		def __init__(self, player, card):
 			super(ActionTrashANewRule.ResolveTrashANewRuleMove, self).__init__(player)
 			self.card = card
+
+		def __eq__(self, other):
+			if not isinstance(other, self.__class__):
+				return False
+			return self.card == other.card
+
+		def __hash__(self):
+			return hash(self.card)
 
 		def raiseIfIllegalMove(self, gs):
 			pass
@@ -91,6 +126,13 @@ class ActionRulesReset(ActionCard):
 		def __init__(self, player):
 			super(ActionRulesReset.ResolveRulesResetMove, self).__init__(player)
 
+		def __eq__(self, other):
+			if not isinstance(other, self.__class__):
+				return False
+
+		def __hash__(self):
+			return 0
+
 		def raiseIfIllegalMove(self, gs):
 			pass
 
@@ -114,6 +156,14 @@ class ActionTrashSomething(ActionCard):
 			super(ActionTrashSomething.ResolveTrashSomethingMove, self).__init__(actingplayer)
 			self.victimplayer = victimplayer
 			self.card = card
+
+		def __eq__(self, other):
+			if not isinstance(other, self.__class__):
+				return False
+			return self.card == other.card
+
+		def __hash__(self):
+			return hash(self.card)
 
 		def raiseIfIllegalMove(self, gs):
 			pass

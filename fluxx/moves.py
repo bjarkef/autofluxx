@@ -5,6 +5,10 @@ class Move:
 	def __init__(self, player):
 		self.player = player
 
+	def __eq__(self, other):
+		if not isinstance(other, self.__class__):
+			return False
+
 	def isLegal(self, gs):
 		try:
 			self.raiseIfIllegalMove(gs)
@@ -18,6 +22,14 @@ class Move:
 
 class DrawMove(Move):
 	"""Draw a single card from the draw pile"""
+
+	def __eq__(self, other):
+		if not isinstance(other, self.__class__):
+			return False
+
+	def __hash__(self):
+		return 0
+
 	def perform(self, gs):
 		card = gs.drawFromDrawPile()
 		gs.playersHands[self.player].append(card)
@@ -27,8 +39,9 @@ class DrawMove(Move):
 	def raiseIfIllegalMoveStatic(gs):
 		if gs.remainingDraws == 0:
 			raise IllegalMove("No more draws remaining")
-		if len(gs.drawPile) == 0:
-			raise IllegalMove("drawPile is empty")
+		if gs.drawPile != None:
+			if len(gs.drawPile) == 0:
+				raise IllegalMove("drawPile is empty")
 		if gs.creeperJustDrawn:
 			raise IllegalMove("Creeper was just drawn")
 
@@ -45,6 +58,14 @@ class PlayMove(Move):
 	def __init__(self, player, card):
 		super(PlayMove, self).__init__(player)
 		self.card = card
+
+	def __eq__(self, other):
+		if not isinstance(other, self.__class__):
+			return False
+		return self.card == other.card
+
+	def __hash__(self):
+		return hash(self.card)
 	
 	def raiseIfIllegalMove(self, gs):
 		# TODO: Also ask the card itself if it is currently playable
@@ -78,6 +99,14 @@ class DiscardMove(Move):
 		super(DiscardMove, self).__init__(player)
 		self.card = card
 
+	def __eq__(self, other):
+		if not isinstance(other, self.__class__):
+			return False
+		return self.card == other.card
+
+	def __hash__(self):
+		return hash(self.card)
+
 	def raiseIfIllegalMove(self, gs):
 		if gs.enforceHandLimitForOtherPlayersExcept == None:
 			EndTurnMove.raiseIfIllegalIgnoringHandLimit(gs, self.player)
@@ -98,6 +127,14 @@ class DiscardMove(Move):
 		return "Discard: {0}".format(self.card.name)
 
 class EndTurnMove(Move):
+
+	def __eq__(self, other):
+		if not isinstance(other, self.__class__):
+			return False
+
+	def __hash__(self):
+		return 0
+
 	@staticmethod
 	def raiseIfIllegalIgnoringHandLimit(gs, player):
 		try:
